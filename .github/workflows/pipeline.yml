@@ -33,3 +33,4 @@ jobs:
           heroku_app_name: "floating-reef-20790"
           heroku_email: "davidjumiller@gmail.com"
           healthcheck: "https://floating-reef-20790.herokuapp.com/health"
+          rollbackonhealthcheckfailed: true
