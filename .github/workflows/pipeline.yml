@@ -34,6 +34,7 @@ jobs:
     needs: [Build-Test]
     steps:
       - if: ${{ github.event_name == 'push' }}
+        id: deploy
         name: deploy to heroku
         uses: akhileshns/heroku-deploy@v3.12.12
         with:
@@ -42,26 +43,26 @@ jobs:
           heroku_email: "davidjumiller@gmail.com"
           healthcheck: "https://floating-reef-20790.herokuapp.com/health"
           rollbackonhealthcheckfailed: true
-      - if: success()
-        name: Success notification
-        uses: rjstone/discord-webhook-notify@v1
-        with:
-          severity: info
-          details: Deployment Succeeded!
-          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
-      - if: failure()
+      - if: steps.deploy.outcome == 'failure'
         name: Failure notification
         uses: rjstone/discord-webhook-notify@v1
         with:
           severity: error
           details: Deployment Failed!
           webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
-      - if: cancelled()
+      - if: steps.deploy.outcome == 'cancelled'
         name: Cancelled notification
         uses: rjstone/discord-webhook-notify@v1
         with:
           severity: warn
           details: Deployment Cancelled!
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
+      - if: steps.deploy.outcome == 'success'
+        name: Success notification
+        uses: rjstone/discord-webhook-notify@v1
+        with:
+          severity: info
+          details: Deployment Succeeded!
           webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
   Tag_release:
     needs: [Deploy]
