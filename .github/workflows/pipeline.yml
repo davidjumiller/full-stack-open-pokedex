@@ -9,7 +9,7 @@ on:
     types: [opened, synchronize] # Runs when PR is opened or updated
 
 jobs:
-  simple_deployment_pipeline:
+  Build-Test:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -29,7 +29,12 @@ jobs:
         with:
           start: npm run start-prod
           wait-on: http://localhost:5000
+  Deploy:
+    runs-on: ubuntu-20.04
+    needs: [Build-Test]
+    steps:
       - if: ${{ github.event_name == 'push' }}
+        id: deploy
         name: deploy to heroku
         uses: akhileshns/heroku-deploy@v3.12.12
         with:
@@ -38,8 +43,29 @@ jobs:
           heroku_email: "davidjumiller@gmail.com"
           healthcheck: "https://floating-reef-20790.herokuapp.com/health"
           rollbackonhealthcheckfailed: true
-  tag_release:
-    needs: [simple_deployment_pipeline]
+      - if: steps.deploy.outcome == 'failure'
+        name: Failure notification
+        uses: rjstone/discord-webhook-notify@v1
+        with:
+          severity: error
+          details: Deployment Failed!
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
+      - if: steps.deploy.outcome == 'cancelled'
+        name: Cancelled notification
+        uses: rjstone/discord-webhook-notify@v1
+        with:
+          severity: warn
+          details: Deployment Cancelled!
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
+      - if: steps.deploy.outcome == 'success'
+        name: Success notification
+        uses: rjstone/discord-webhook-notify@v1
+        with:
+          severity: info
+          details: Deployment Succeeded!
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
+  Tag_release:
+    needs: [Deploy]
     runs-on: ubuntu-20.04
     steps:
       - if: ${{ github.event_name == 'push' && !contains(toJson(github.event.commits.*.message), '#skip')}}
@@ -48,3 +74,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEFAULT_BUMP: patch
+
